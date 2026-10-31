@@ -1,0 +1,16 @@
+# Ignore everything except the project files that should be kept in Git.
+*
+!*/
+!.gitignore
+
+# Core application and model files
+!/requirements.txt
+!/src/README.md
+!/src/features_v2.py
+!/src/train_v3.py
+!/src/func.py
+!/src/test_app.py
+!/src/csv_file.py
+!/src/main_ui.py
+!/notebook/process.ipynb
+!/model/scaler.pkl
