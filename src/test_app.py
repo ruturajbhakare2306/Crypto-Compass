@@ -11,7 +11,7 @@ import websocket
 from func import Rolling_prediction
 
 
-URL = "wss://stream.binance.com:9443/ws/btcusdt@depth10@100ms"
+URL = "wss://stream.binance.com:443/ws/btcusdt@depth10@100ms"
 OBI_WINDOW = 12
 
 
