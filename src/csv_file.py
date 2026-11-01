@@ -51,11 +51,20 @@ def summarize_csv(
         0 = DOWN (future return <= 0)
         <NA> = UNKNOWN (future price unavailable)
     """
-    csv_path = Path(csv_path)
-    if not csv_path.exists():
-        raise FileNotFoundError(f"CSV file not found: {csv_path}")
+    # Accept either a local filesystem path or a remote HTTP(S) URL.
+    # Keep URLs as strings: pathlib.Path normalizes https:// into https:/.
+    csv_source = str(csv_path).strip()
 
-    df = pd.read_csv(csv_path)
+    if csv_source.startswith(("http://", "https://")):
+        # Tardis downloads are commonly .csv.gz; pandas can decompress them.
+        compression = "gzip" if csv_source.split("?", 1)[0].lower().endswith(".gz") else "infer"
+        df = pd.read_csv(csv_source, compression=compression)
+    else:
+        local_path = Path(csv_source)
+        if not local_path.exists():
+            raise FileNotFoundError(f"CSV file not found: {local_path}")
+
+        df = pd.read_csv(local_path)
 
     # Validate metadata and the first 10 levels of the order book.
     required_columns = ["timestamp", "local_timestamp"]
