@@ -30,6 +30,9 @@ def render_block():
     messages_received = snapshot["messages_received"]
     last_message_at = snapshot["last_message_at"]
     obi_count = snapshot["obi_count"]
+    valid_book_messages = snapshot["valid_book_messages"]
+    reconnect_attempt = snapshot["reconnect_attempt"]
+    current_url = snapshot["url"]
     history_block = snapshot["prediction_history"]
 
     stop_column, resume_column = st.columns(2)
@@ -51,11 +54,32 @@ def render_block():
     if not running:
         st.info("Live prediction is stopped.")
 
+    st.subheader("Live data source")
+    source_url = st.text_input(
+        "WebSocket URL (wss://)",
+        value=current_url,
+        key="live_websocket_url",
+        help=(
+            "Default: Binance BTCUSDT. Custom sources must send complete "
+            "order-book snapshots with bids and asks as [price, quantity] pairs."
+        ),
+    )
+    if st.button("Apply source and reconnect", key="apply_live_source"):
+        try:
+            service.stop()
+            service.start(reset=True, url=source_url)
+            st.success("Source updated. Connecting...")
+        except ValueError as exc:
+            st.error(str(exc))
+
     status_col, messages_col, observations_col, last_message_col = st.columns(4)
     status_col.metric("WebSocket", connection_status)
     messages_col.metric("Messages received", messages_received)
     observations_col.metric("OBI collected", f"{obi_count}/12")
     last_message_col.metric("Last message (UTC)", last_message_at or "—")
+    detail_col1, detail_col2 = st.columns(2)
+    detail_col1.caption(f"Valid order-book messages: {valid_book_messages}")
+    detail_col2.caption(f"Reconnect attempts: {reconnect_attempt}")
 
     left, right = st.columns([7, 3])
     with left:
