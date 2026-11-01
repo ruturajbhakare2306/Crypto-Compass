@@ -3,5 +3,6 @@ numpy==2.4.4
 pandas==3.0.2
 scikit-learn==1.8.0
 streamlit==1.66.1
-torch==2.14.1
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.14.1+cpu
 websocket-client==1.9.0
