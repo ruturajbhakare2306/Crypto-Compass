@@ -31,6 +31,9 @@ class LivePredictionService:
         self.prediction = None
         self.probabilities = None
         self.error = None
+        self.connection_status = "Not started"
+        self.messages_received = 0
+        self.last_message_at = None
 
     def start(self, *, reset=False):
         """Start collecting live data, optionally beginning a fresh prediction window."""
@@ -46,7 +49,10 @@ class LivePredictionService:
                     self.prediction = None
                     self.probabilities = None
                     self.error = None
+                    self.messages_received = 0
+                    self.last_message_at = None
 
+            self.connection_status = "Connecting"
             self.stop_event.clear()
             self.thread = threading.Thread(target=self._run, daemon=True)
             self.thread.start()
@@ -55,6 +61,12 @@ class LivePredictionService:
         try:
             if self.stop_event.is_set():
                 return
+
+            with self.lock:
+                self.messages_received += 1
+                self.last_message_at = datetime.now(timezone.utc).isoformat(
+                    timespec="seconds"
+                )
 
             data = json.loads(message)
             bids = data["bids"]
@@ -96,11 +108,19 @@ class LivePredictionService:
                     )
         except Exception as exc:
             with self.lock:
-                self.error = str(exc)
+                self.error = f"Message processing error: {exc}"
 
     def _on_error(self, ws, error):
         with self.lock:
+            self.connection_status = "Connection error"
             self.error = str(error)
+
+    def _on_close(self, ws, close_status_code, close_msg):
+        with self.lock:
+            if not self.stop_event.is_set():
+                self.connection_status = "Disconnected"
+                detail = f"WebSocket closed ({close_status_code}): {close_msg}"
+                self.error = detail
 
     def _on_open(self, ws):
         if self.stop_event.is_set():
@@ -111,6 +131,7 @@ class LivePredictionService:
             if self.stop_event.is_set():
                 ws.close()
             else:
+                self.connection_status = "Connected"
                 self.error = None
 
     def _run(self):
@@ -124,6 +145,7 @@ class LivePredictionService:
                     on_open=self._on_open,
                     on_message=self._on_message,
                     on_error=self._on_error,
+                    on_close=self._on_close,
                 )
                 self.websocket = current_websocket
 
@@ -162,12 +184,18 @@ class LivePredictionService:
                     for record in self.prediction_history
                 ],
                 "error": self.error,
+                "connection_status": self.connection_status,
+                "messages_received": self.messages_received,
+                "last_message_at": self.last_message_at,
+                "obi_count": len(self.obi_values),
             }
 
     def stop(self):
         """Stop the feed and wait for any in-flight prediction to finish."""
         with self.lifecycle_lock:
             self.stop_event.set()
+            with self.lock:
+                self.connection_status = "Stopped"
             with self.websocket_lock:
                 websocket = self.websocket
                 self.websocket = None

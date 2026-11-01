@@ -26,6 +26,10 @@ def render_block():
     probabilities = snapshot["probabilities"]
     obi_values = snapshot["obi_values"]
     error = snapshot["error"]
+    connection_status = snapshot["connection_status"]
+    messages_received = snapshot["messages_received"]
+    last_message_at = snapshot["last_message_at"]
+    obi_count = snapshot["obi_count"]
     history_block = snapshot["prediction_history"]
 
     stop_column, resume_column = st.columns(2)
@@ -46,6 +50,12 @@ def render_block():
 
     if not running:
         st.info("Live prediction is stopped.")
+
+    status_col, messages_col, observations_col, last_message_col = st.columns(4)
+    status_col.metric("WebSocket", connection_status)
+    messages_col.metric("Messages received", messages_received)
+    observations_col.metric("OBI collected", f"{obi_count}/12")
+    last_message_col.metric("Last message (UTC)", last_message_at or "—")
 
     left, right = st.columns([7, 3])
     with left:
